@@ -1,80 +1,90 @@
-// Only target real seat elements, not the legend
-const seats = document.querySelectorAll('.seat:not(.legend-seat)');
+// Get seat elements
+const seats = document.querySelectorAll('.seat:not(.booked)');
 
 const selectedSeatDisplay = document.getElementById('selectedSeat');
 const totalPriceDisplay = document.getElementById('totalPrice');
-const bookingForm = document.getElementById('bookingForm');
-const submitBtn = document.getElementById('submitBooking');
+const payBtn = document.getElementById('payBtn');
 
-let selectedSeats = [];
+// MAKE selectedSeats GLOBAL
+window.selectedSeats = [];
 
-const pricePerSeatInput = document.querySelector('input[name="price_per_seat"]');
-const pricePerSeat = pricePerSeatInput ? parseFloat(pricePerSeatInput.value) : 0;
+// Read price correctly
+const pricePerSeat = parseFloat(document.getElementById('price_per_seat').value);
 
+// Update price UI
 function updateTotalPrice() {
-    const total = selectedSeats.length * pricePerSeat;
-    totalPriceDisplay.textContent = `Total Price: Rs. ${total.toFixed(2)}`;
+    const total = window.selectedSeats.length * pricePerSeat;
+    totalPriceDisplay.textContent = `Total Price: Rs. ${total}`;
 }
 
+// Update seat text + enable/disable pay button
 function updateSeatDisplay() {
-    if (selectedSeats.length > 0) {
-        selectedSeatDisplay.textContent = `You selected: ${selectedSeats.join(', ')}`;
-        submitBtn.disabled = false;
+    if (window.selectedSeats.length > 0) {
+        selectedSeatDisplay.textContent = `You selected: ${window.selectedSeats.join(', ')}`;
+        payBtn.disabled = false;
+        
+        // Update hidden input for form submission
+        document.getElementById('selectedSeatsJSON').value = JSON.stringify(window.selectedSeats);
     } else {
         selectedSeatDisplay.textContent = '';
-        submitBtn.disabled = true;
+        payBtn.disabled = true;
     }
     updateTotalPrice();
 }
 
+// Seat click handler
 seats.forEach(seat => {
     seat.addEventListener('click', () => {
-        if (seat.classList.contains('booked')) return;
-
-        const seatNum = seat.dataset.seat;
 
         if (!isLoggedIn) {
             alert("Please log in to book seats.");
-            window.location.href = "login.php"; // Redirect to login page
+            window.location.href = "login.php";
             return;
         }
 
+        const seatNum = seat.dataset.seat;
+
         if (seat.classList.contains('selected')) {
             seat.classList.remove('selected');
-            selectedSeats = selectedSeats.filter(s => s !== seatNum);
+            window.selectedSeats = window.selectedSeats.filter(s => s !== seatNum);
         } else {
-            if (selectedSeats.length >= 4) {
+            if (window.selectedSeats.length >= 4) {
                 alert("You can book a maximum of 4 seats.");
                 return;
             }
             seat.classList.add('selected');
-            selectedSeats.push(seatNum);
+            window.selectedSeats.push(seatNum);
         }
 
         updateSeatDisplay();
     });
 });
 
-bookingForm.addEventListener('submit', function(e) {
-    // Remove any previously added hidden seat inputs
-    const oldInputs = this.querySelectorAll('input[name="selectedSeats[]"]');
-    oldInputs.forEach(input => input.remove());
+// Start with disabled button
+payBtn.disabled = true;
 
-    // Add new hidden inputs
-    selectedSeats.forEach(seat => {
-        let input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'selectedSeats[]';
-        input.value = seat;
-        this.appendChild(input);
-    });
-
-    // Optional: include total price
-    if (pricePerSeatInput) {
-        const totalPriceInput = document.createElement('input');
-        totalPriceInput.type = 'hidden';
-        totalPriceInput.name = 'total_price';
-        totalPriceInput.value = (pricePerSeat * selectedSeats.length).toFixed(2);
-        this.appendChild(totalPriceInput);
+// Handle form submission
+document.getElementById('bookingForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    console.log("📝 Form submitted");
+    
+    // Double check login
+    if (typeof isLoggedIn === 'undefined' || !isLoggedIn) {
+        alert("⚠️ Please login first to book tickets!");
+        window.location.href = "login.php";
+        return false;
     }
+    
+    // Validate seats
+    if (window.selectedSeats.length === 0) {
+        alert("⚠️ Please select at least one seat.");
+        return false;
+    }
+    
+    console.log("✅ Submitting booking for seats:", window.selectedSeats);
+    console.log("💰 Total amount:", window.selectedSeats.length * pricePerSeat);
+    
+    // Submit the form
+    this.submit();
 });
