@@ -1,3 +1,4 @@
+
 <?php
 include 'header.php';
 include 'config.php';
@@ -32,7 +33,7 @@ $totalSeats = $route['total_seats'] ?? 40;
 $pricePerSeat = $route['price'];
 $busId = $route['bus_id'];
 
-// 🔒 Fetch already booked seats
+// Get already booked seats
 $bookedStmt = $pdo->prepare("SELECT seat_numbers FROM bookings WHERE route_id = ? AND bus_id = ?");
 $bookedStmt->execute([$route['id'], $busId]);
 $bookedSeatsRaw = $bookedStmt->fetchAll(PDO::FETCH_COLUMN);
@@ -46,110 +47,79 @@ foreach ($bookedSeatsRaw as $seatList) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <title>Seat Booking - ebus Nepal</title>
-    <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <title>Seat Booking - eBus Nepal</title>
+    <link rel="stylesheet" href="style.css">
+
     <style>
-        .bus-container {
-            max-width: 460px;
-            margin: 40px auto;
-        }
-        .row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-        }
-        .seat-side {
-            display: flex;
-            gap: 8px;
-        }
+        .bus-container { max-width: 460px; margin: 40px auto; }
+        .row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .seat-side { display: flex; gap: 8px; }
         .seat {
             background: #f2f2f2;
             padding: 12px 14px;
             text-align: center;
             border-radius: 4px;
             cursor: pointer;
-            transition: 0.2s;
             min-width: 45px;
             user-select: none;
             border: 1px solid #ccc;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             font-weight: 500;
+            transition: 0.2s;
         }
-        .seat:hover {
-            background: #dfe6e9;
+        .seat.selected { background:#27ae60; color:white; }
+        .seat.booked { background:#c0392b; color:white; cursor:not-allowed; }
+        .aisle-space { width: 15px; }
+        #totalPrice { font-weight:bold; text-align:center; margin-top:15px; }
+        #payBtn {
+            display:block; margin:25px auto; padding:14px 25px;
+            background:#5a2ea6; color:white; border:none; 
+            border-radius:6px; cursor:pointer; font-size:17px;
         }
-        .seat.selected {
-            background: #27ae60;
-            color: white;
-        }
-        .seat.booked {
-            background: #c0392b;
-            color: white;
-            cursor: not-allowed;
-        }
-        .aisle-space {
-            width: 15px;
-        }
-        .legend {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 20px;
-        }
-        #totalPrice {
-            font-weight: bold;
-            text-align: center;
-            margin-top: 15px;
-        }
-        button#submitBooking {
-            display: block;
-            margin: 20px auto;
-            padding: 12px 25px;
-            font-size: 16px;
-            background-color: #27ae60;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button#submitBooking:disabled {
-            background-color: #999;
-            cursor: not-allowed;
-        }
+        #payBtn:disabled { background:#999; cursor:not-allowed; }
+
     </style>
 </head>
 <body>
+
     <section class="page-hero">
         <div class="container">
             <h1>Book Your Seat</h1>
-            <p>Route: <?= htmlspecialchars($route['from_city']) ?> → <?= htmlspecialchars($route['to_city']) ?> | 
-            Bus: <?= htmlspecialchars($route['bus_number']) ?> | 
-            Date: <?= htmlspecialchars($route['travel_date']) ?></p>
+            <p>
+                Route: <?= htmlspecialchars($route['from_city']) ?> → <?= htmlspecialchars($route['to_city']) ?> | 
+                Bus: <?= htmlspecialchars($route['bus_number']) ?> |
+                Date: <?= htmlspecialchars($route['travel_date']) ?>
+            </p>
         </div>
     </section>
 
     <div class="container">
-        <form id="bookingForm" method="POST" action="process_booking.php">
-            <input type="hidden" name="route_id" value="<?= htmlspecialchars($routeId) ?>">
-            <input type="hidden" name="bus_id" value="<?= htmlspecialchars($busId) ?>">
-            <input type="hidden" name="price_per_seat" value="<?= htmlspecialchars($pricePerSeat) ?>">
 
-            <div class="bus-container" id="busLayout">
-                <div class="row" style="margin-bottom: 10px; font-weight: bold;">
-                    <div class="seat-side" style="gap: 8px;">
-                        <div style="width: 45px; text-align: center;">A</div>
-                        <div style="width: 45px; text-align: center;">A</div>
+        
+        <form id="bookingForm" method="POST" action="initiate_esewa.php">
+
+            <input type="hidden" id="route_id" name="route_id" value="<?= htmlspecialchars($routeId) ?>">
+            <input type="hidden" id="bus_id" name="bus_id" value="<?= htmlspecialchars($busId) ?>">
+            <input type="hidden" id="price_per_seat" name="price_per_seat" value="<?= htmlspecialchars($pricePerSeat) ?>">
+            <input type="hidden" id="selectedSeatsJSON" name="selectedSeatsJSON">
+
+            <div class="bus-container">
+
+                <!-- Seat Header -->
+                <div class="row" style="margin-bottom:10px; font-weight:bold;">
+                    <div class="seat-side">
+                        <div style="width:45px; text-align:center;">A</div>
+                        <div style="width:45px; text-align:center;">A</div>
                     </div>
                     <div class="aisle-space"></div>
-                    <div class="seat-side" style="gap: 8px;">
-                        <div style="width: 45px; text-align: center;">B</div>
-                        <div style="width: 45px; text-align: center;">B</div>
+                    <div class="seat-side">
+                        <div style="width:45px; text-align:center;">B</div>
+                        <div style="width:45px; text-align:center;">B</div>
                     </div>
                 </div>
 
                 <?php
-                $rows = floor(($totalSeats - 3) / 4); 
+                $rows = floor(($totalSeats - 3) / 4);
                 $a = 1;
                 $b = 1;
 
@@ -179,7 +149,7 @@ foreach ($bookedSeatsRaw as $seatList) {
                     echo "</div>";
                 }
 
-                echo "<div class='row' style='justify-content: center; gap: 6px;'>";
+                echo "<div class='row' style='justify-content:center; gap:6px;'>";
                 for ($j = 0; $j < 4; $j++) {
                     $seatName = "a$a";
                     $bookedClass = in_array($seatName, $bookedSeats) ? "booked" : "";
@@ -195,25 +165,26 @@ foreach ($bookedSeatsRaw as $seatList) {
                 }
                 echo "</div>";
                 ?>
+
             </div>
 
-            <p id="selectedSeat" style="text-align: center; margin-top: 20px; font-weight: bold;"></p>
+            <p id="selectedSeat" style="text-align:center; margin-top:20px; font-weight:bold;"></p>
             <p id="totalPrice">Total Price: Rs. 0</p>
 
-            <div class="legend">
-                <span><div class="seat legend-seat">Available</div></span>
-                <span><div class="seat selected legend-seat">Selected</div></span>
-                <span><div class="seat booked legend-seat">Booked</div></span>
-            </div>
+            <button id="payBtn" type="submit">Proceed to Pay with esewa</button>
 
-
-            <button type="submit" id="submitBooking" disabled>Book Selected Seats</button>
         </form>
     </div>
 
-    <script>
-        const isLoggedIn = <?= isset($_SESSION['user_id']) ? 'true' : 'false' ?>;
-    </script>
-    <script src="booking.js"></script>
+  <!-- Make login state available -->
+<script>
+    const isLoggedIn = <?= isset($_SESSION['user_id']) ? 'true' : 'false' ?>;
+</script>
+
+<!-- 2. Then load seat-selection logic -->
+<script src="booking.js"></script>
+
+
+
 </body>
 </html>
